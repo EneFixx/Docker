@@ -1,0 +1,51 @@
+
+services:
+  database:
+    build: ./Database
+    container_name: my-database
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./Backend
+    container_name: simple-api
+    environment:
+      DB_HOST: database
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - app-network
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+
+  httpd:
+    build: ./HttpServer
+    container_name: my-httpd
+    ports:
+      - "80:80"
+    networks:
+      - app-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  app-network:
+
+volumes:
+  db-data:
